@@ -1,13 +1,13 @@
 ivohf:
   vars:
-    ansible_ssh_user: qdu
-    ansible_ssh_private_key_file: /home/qdu/.ssh/id_ivocap
+    ansible_ssh_user: "{{ lookup('env', 'USER') }}"
+    ansible_ssh_private_key_file: ~/.ssh/id_ivocap
     ansible_python_interpreter: /usr/bin/python3
     ansible_become_password: '{{ servers_become_pass }}'
 
   hosts:
     poisson:
-      ansible_host: 192.168.32.77
+      ansible_host: "{{ lookup('env', 'POISSON_IP') }}"
       ansible_port: 66
       ansible_become_password: '{{ poisson_become_pass }}'
     "4":

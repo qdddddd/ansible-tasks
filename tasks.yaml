@@ -1,6 +1,6 @@
 - hosts: ivohf
   vars_files:
-    - ~/Documents/projects/ansible/pass.yaml
+    - "{{ playbook_dir }}/.pass"
   vars:
     proxy_ip: "{{ lookup('env', 'PROXY_IP') | default('192.168.95.40', true) }}"
     proxy_env: "{{ {'http_proxy': 'http://' + proxy_ip + ':7890', 'https_proxy': 'http://' + proxy_ip + ':7890'} if proxy_ip | length > 0 else {} }}"

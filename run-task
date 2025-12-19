@@ -45,4 +45,4 @@ if [ -n "$server" ]; then
     limit_args=(--limit "$server")
 fi
 
-ansible-playbook ${dir}/tasks.yaml -i ${dir}/hosts.yaml --vault-password-file=${dir}/vault.txt "${limit_args[@]}" -t $1
+ansible-playbook ${dir}/tasks.yaml -i ${dir}/hosts.yaml --vault-password-file=${dir}/.vault "${limit_args[@]}" -t $1
