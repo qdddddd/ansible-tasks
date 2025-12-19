@@ -1,0 +1,76 @@
+- hosts: ivohf
+  vars_files:
+    - ~/Documents/projects/ansible/pass.yaml
+  vars:
+    proxy_ip: "{{ lookup('env', 'PROXY_IP') | default('192.168.95.40', true) }}"
+    proxy_env: "{{ {'http_proxy': 'http://' + proxy_ip + ':7890', 'https_proxy': 'http://' + proxy_ip + ':7890'} if proxy_ip | length > 0 else {} }}"
+  tasks:
+    - name: "Show proxy env when set"
+      tags: "proxy-info"
+      debug:
+        var: proxy_env
+      when: proxy_env != {}
+
+    - name: "Update dotfiles repository"
+      tags: ["update-dotfiles", "update-all"]
+      shell: |
+        source ~/.aliases
+        git -C ~/.dotfiles stash
+        git -C ~/.dotfiles pull --rebase --recurse-submodules
+        echo ${proxy_env}
+      args:
+        executable: /bin/zsh
+      environment: "{{ proxy_env }}"
+
+    - name: "Install Neovim from dotfiles"
+      tags: ["update-vim", "update-all"]
+      shell: |
+        ~/.dotfiles/scripts/install_neovim
+      args:
+        executable: /bin/zsh
+      environment: "{{ proxy_env }}"
+
+    - name: "Enforce GitHub SSH over 443"
+      tags: "update-sshconfig"
+      blockinfile:
+        path: ~/.ssh/config
+        create: true
+        mode: "0600"
+        insertbefore: BOF
+        marker: "# {mark} ANSIBLE MANAGED github.com 443"
+        block: |
+          Host github.com
+              Hostname ssh.github.com
+              Port 443
+              StrictHostKeyChecking no
+
+    - name: "Remove GitHub SSH 443 block"
+      tags: "remove-sshconfig"
+      blockinfile:
+        path: ~/.ssh/config
+        marker: "# {mark} ANSIBLE MANAGED github.com 443"
+        state: absent
+
+    - name: "Umount JuiceFS"
+      tags: "jfs-umount"
+      command: sudo juicefs umount -f /minio
+      become: true
+
+    - name: "Setup JuiceFS"
+      tags: "jfs-setup"
+      command: zsh /ivohf/qdu/scripts/setup_juicefs.sh -u
+      become: true
+
+    - name: "Remount JuiceFS"
+      tags: "jfs-remount"
+      shell: |
+        sudo juicefs umount -f /minio
+        sudo umount /tmp/jfstmp
+        sudo mount /tmp/jfstmp
+        sudo mount /minio
+      become: true
+
+    - name: "Update Julia"
+      tags: "update-julia"
+      command: juliaup update
+      become: false

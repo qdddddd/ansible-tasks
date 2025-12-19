@@ -1,0 +1,48 @@
+#!/bin/zsh
+
+while getopts ":s:h" opt; do
+    case "$opt" in
+        s)
+            server="$OPTARG"
+            ;;
+        h)
+            show_help=1
+            ;;
+        *)
+            show_help=1
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+if [ -n "$show_help" ] || [ -z "$1" ]; then
+    cat <<'EOF'
+Usage: run-task [-s server] <tag>
+
+Tags:
+    jfs-umount
+    jfs-setup
+    jfs-remount
+    update-julia
+    update-dotfiles
+    update-vim
+    update-jfs
+    update-sshconfig
+    remove-sshconfig-443
+    update-all
+
+Examples:
+    run-task update-all
+    run-task -s poisson update-all
+    run-task update-sshconfig
+EOF
+    exit 1
+fi
+
+dir=$(dirname $0)
+limit_args=()
+if [ -n "$server" ]; then
+    limit_args=(--limit "$server")
+fi
+
+ansible-playbook ${dir}/tasks.yaml -i ${dir}/hosts.yaml --vault-password-file=${dir}/vault.txt "${limit_args[@]}" -t $1

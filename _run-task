@@ -1,0 +1,81 @@
+#compdef run-task
+
+_run_task() {
+    local -a tags raw_tags hosts raw_hosts
+    local cmd="${words[1]}"
+    local cmd_path=""
+    local tasks_file=""
+    local hosts_file=""
+
+    if [[ "$cmd" == */* ]]; then
+        cmd_path="${cmd:A}"
+    else
+        cmd_path="${commands[$cmd]}"
+    fi
+
+    if [[ -n "$cmd_path" ]]; then
+        tasks_file="${cmd_path:h}/tasks.yaml"
+        hosts_file="${cmd_path:h}/hosts.yaml"
+    else
+        tasks_file="${PWD}/tasks.yaml"
+        hosts_file="${PWD}/hosts.yaml"
+    fi
+
+    if [[ -f "$tasks_file" ]]; then
+        raw_tags=("${(@f)$(grep -E '^\s*tags:' "$tasks_file" 2>/dev/null | sed -E 's/^\s*tags:\s*//; s/\[|\]//g; s/["'\''"]//g; s/,/ /g')}")
+        tags=(${=raw_tags})
+        tags=(${tags:#})
+        tags=(${(u)tags})
+        tags=(${tags:#--})
+        tags=(${tags:#<->})
+    fi
+
+    if [[ -f "$hosts_file" ]]; then
+        raw_hosts=("${(@f)$(awk '
+            /^  hosts:/ { in_hosts=1; next }
+            in_hosts && /^[^ ]/ { in_hosts=0 }
+            in_hosts && /^  [^ ]/ { in_hosts=0 }
+            in_hosts && /^    [^[:space:]][^:]*:$/ {
+                host=$0
+                sub(/^    /, "", host)
+                sub(/:$/, "", host)
+                gsub(/"/, "", host)
+                print host
+            }
+        ' "$hosts_file" 2>/dev/null)}")
+        hosts=(${=raw_hosts})
+        hosts=(${hosts:#})
+        hosts=(${(u)hosts})
+    fi
+
+    _arguments -C \
+        '-s+[limit to server]:server:->servers' \
+        '-h[show help]' \
+        '1:tag:->tags'
+
+    case $state in
+        tags)
+            if (( ${#tags} )); then
+                _describe -t tags 'tags' tags
+            else
+                _message 'no tags found'
+            fi
+            ;;
+        servers)
+            if (( ${#hosts} )); then
+                local cur="${words[$CURRENT]}"
+                local prefix=""
+                if [[ "$cur" == *,* ]]; then
+                    prefix="${cur%,*},"
+                    compadd -P "$prefix" -a hosts
+                else
+                    _describe -t servers 'servers' hosts
+                fi
+            else
+                _message 'no servers found'
+            fi
+            ;;
+    esac
+}
+
+compdef _run_task run-task
